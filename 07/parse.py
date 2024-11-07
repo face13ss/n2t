@@ -16,11 +16,11 @@ import sys
 # POINT 1 -> THAT
 
 Register = {
-    "SP"    : 899,
-    "LCL"   : 256,
-    "ARG"   : 384,
-    "THIS"  : 513,
-    "THAT"  : 642,
+    "SP"    : 256,
+    "LCL"   : 300,
+    "ARG"   : 400,
+    "THIS"  : 3000,
+    "THAT"  : 3010,
     "TEMP0" : 0,
     "TEMP1" : 0,
     "TEMP2" : 0,
@@ -64,33 +64,6 @@ TEMP = {
     "7" : 12,
 }
 
-RAMSegmentBase = {
-    "LCL"       : 256,
-    "ARG"       : 384,
-    "THIS"      : 513,
-    "THAT"      : 642,
-    "STACK"     : 770
-}
-
-RAMSegmentP = {
-    "LCL"       : 256,
-    "ARG"       : 384,
-    "THIS"      : 513,
-    "THAT"      : 642,
-    "STACK"     : 770
-}
-
-stackBase = 513
-# SP   RAM[0]
-# LCL  RAM[1]
-# ARG  RAM[2]
-# THIS RAM[3]
-# THAT RAM[4]
-# TEMP RAM[5-12]
-# R13
-# R14  RAM[13-15]
-# R15
-
 const = ["C_ARITHMETIC",
          "C_POP",
          "C_LABEL",
@@ -102,39 +75,51 @@ const = ["C_ARITHMETIC",
 
 # STACK
 def increaseStack():
-    Register["SP"] += 1
+    return "\n@R0\nM=M+1"
+  
 
 def decreaseStack():
-    Register["SP"] -= 1
+    return "@R0\nM=M-1\n"
 
 
 # Constant -----------------------------------------------
+# push constant value
+# @value
+# D=A
+# @R0
+# A=M
+# M=S
 def pushConstant(value):
-    result = "@" + value + "\nD=A" + "\n@" + str(Register["SP"]) + "\nM=D"
-    Register["SP"] +=1
+    result = "@" + value + "\nD=A" + "\n@R0" + "\nA=M\nM=D"
+    result += increaseStack()
     return result
     
 # --------------------------------------------------------
 
 # Local --------------------------------------------------
 # pop Local
-# @SP
+# @--SP
 # D=M
 # @local + i
 # M=D
 def popLocal(value):
-    result = "@"+ str(Register["SP"]) + "\nD=M" + "\n@" + str((RAMSegmentP["LCL"] + int(value))) + "\nM=D"
-    Register["SP"] -=1
+    result = decreaseStack()
+    result += "@"+ "R0" + "\nD=M" 
+    result += "\n@R1" + "\nD=M"+ "\n@"+value + "\nD=D+A\nA=D\nM=D"
     return result
 
-# push local
-# @local + i
+# push local i
+# @local
+# D=M
+# @i
+# D=D+A
 # D=M
 # @SP
+# A=M
 # M=D
 def pushLocal(value):
-    result = "@" + str((RAMSegmentP["LCL"] + int(value))) + "\nD=M" + "\n@" + str(Register["SP"]) + "\nM=D"
-    Register["SP"] +=1
+    result = "@R1" + "\nD=M"+ "\n@"+value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nA=M\nM=D"
+    result += increaseStack()
     return result
 
 # --------------------------------------------------------
@@ -143,11 +128,15 @@ def pushLocal(value):
 # pop Argument i
 # @SP
 # D=M
-# @ARG + i
+# @ARG
+# D=M
+# @i
+# D=D+A
+# A=D
 # M=D
 def popArgument(value):
-    result = "@"+ str(Register["SP"]) + "\nD=M" + "\n@" + str((RAMSegmentP["ARG"] + int(value))) + "\nM=D"
-    Register["SP"] -=1
+    result = decreaseStack()
+    result += "@"+ "R0" + "\nD=M" + "\n@R2" + "\nD=M" + "\n@"+value + "\nD=D+A\nA=D\nM=D"
     return result
 
 # push argument i
@@ -156,8 +145,8 @@ def popArgument(value):
 # @SP
 # M=D
 def pushArgument(value):
-    result = "@" + str((RAMSegmentP["ARG"] + int(value))) + "\nD=M" + "\n@" + str(Register["SP"]) + "\nM=D"
-    Register["SP"] +=1
+    result = "@R1" + "\nD=M" +"\n@"+ value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nM=D"
+    result += increaseStack()
     return result
 
 
@@ -171,8 +160,8 @@ def pushArgument(value):
 # @THIS + i
 # M=D
 def popThis(value):
-    result = "@"+ str(Register["SP"]) + "\nD=M" + str((RAMSegmentP["THIS"] + int(value))) + "\nM=D"
-    Register["SP"] -=1
+    result = decreaseStack()
+    result += "@"+ "R0" + "\nD=M\n@R3" + "\nD=M"+ "\n@" + value + "\nD=D+A\nA=D\nM=D"
     return result
 
 # push this i
@@ -181,8 +170,8 @@ def popThis(value):
 # @SP
 # M=D
 def pushThis(value):
-    result = "@" + str((RAMSegmentP["THIS"] + int(value))) + "\nD=M" + "\n@" + str(Register["SP"]) + "\nM=D"
-    Register["SP"] +=1
+    result = "@R3" + "\nD=M"+ "\n@" + value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nM=D"
+    result += increaseStack()
     return result
 # --------------------------------------------------------
 
@@ -193,8 +182,8 @@ def pushThis(value):
 # @THAT + i
 # M=D
 def popThat(value):
-    result = "@"+ str(Register["SP"]) + "\nD=M" + "\n@" + str((RAMSegmentP["THAT"] + int(value))) + "\nM=D"
-    Register["SP"] -=1
+    result = decreaseStack()
+    result += "@"+ "R0" + "\nD=M" + "\n@R4" + "\nD=M" + "\n@" + value + "\nD=D+A\nA=D\nM=D"
     return result
 
 # push that i
@@ -203,8 +192,8 @@ def popThat(value):
 # @SP
 # D=M
 def pushThat(value):
-    result = "@" + str((RAMSegmentP["THAT"] + int(value))) + "\nD=M" + "\n@" + str(Register["SP"]) + "\nM=D"
-    Register["SP"] +=1
+    result = "@R4" + "\nD=M" + "\n@" + value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nM=D"
+    result += increaseStack()
     return result
 # --------------------------------------------------------
 
@@ -215,8 +204,8 @@ def pushThat(value):
 # @temp[i]
 # M=D
 def popTemp(value):
-    result = "@"+ str(Register["SP"]) + "\nD=M" + "\n@" + str(TEMP[value]) + "\nM=D"
-    Register["SP"] -=1
+    result = decreaseStack()
+    result += "@"+ "R0" + "\nD=M" + "\n@R" + str(TEMP[value]) + "\nM=D"
     return result
 
 # push temp i
@@ -225,17 +214,81 @@ def popTemp(value):
 # @SP
 # M=D
 def pushTemp(value):
-    result = "@" + str(TEMP[value]) + "\nD=M" + "\n@" + str(Register["SP"]) + "\nM=D"
-    Register["SP"] +=1
+    result = "@R" + str(TEMP[value]) + "\nD=M" + "\n@" + "R0" + "\nM=D"
+    result += increaseStack()
     return result
 # --------------------------------------------------------
 
+# POINTER ------------------------------------------------
+# 0 = THIS (R3) or 1 = THAT (R4)
 
-def add(x, y):
-    return x + y
+# push pointer 0
+# @R3
+# D=M
+# @R0
+# A=M
+# M=D
 
+def pushPointer(value):
+    pointer = ""
+    if value == 0:
+        pointer = "R3"
+    else:
+        pointer = "R4"
+    
+    result = "@" + pointer + "\nD=M" + "\n@R0\nA=M\nM=D"
+    result += increaseStack()
+    return result
+
+# pop pointer 0
+# @--R0
+# D=M
+# @R3
+# M=D
+def popPointer(value):
+    pointer = ""
+    if value == 0:
+        pointer = "R3"
+    else:
+        pointer = "R4"
+    result = decreaseStack()
+    result += "@R0\nD=M\n@"+pointer+"\nM=D"
+# --------------------------------------------------------
+
+# ADD ----------------------------------------------------
+# @--SP
+# D=M
+# @--SP
+# M=D+M
+# SP++
+def add():
+    add = decreaseStack()
+    add += "@"+ "R0" + "\nD=M"
+    # 
+    Register["SP"] -=1
+    add += "\n@"+ "R0" + "\nM=D+M"
+    add += increaseStack()
+    return add
+
+# SUB ----------------------------------------------------
+# @--SP
+# D=M
+# @--SP
+# M=D-M
+# SP++
 def sub():
-    return
+    sub = decreaseStack()
+    sub += "@"+ "R0" + "\nD=M"
+    # 
+    Register["SP"] -=1
+    sub += "\n@"+ "R0" + "\nM=D-M"
+    sub += increaseStack()
+    return sub
+
+def end():
+    end = "(END)\n@END\n0;JMP\n"
+    return end
+
 def initializer():
     return
 
@@ -270,46 +323,54 @@ for s in rawVMCode:
         # push
         if opcode[0] == "push":
             if opcode[1] == "constant":
-                # print(pushConstant(opcode[2]) + "   // " + s)
-                print()
+                print(pushConstant(opcode[2]) + "   // " + s)
+                
             elif opcode[1] == "local":
-                # print(pushLocal(opcode[2]) + "   // " + s)
-                print()
+                print(pushLocal(opcode[2]) + "   // " + s)
+                
             elif opcode[1] == "that":
-                # print(pushThat(opcode[2]) + "   // " + s)
-                print()
+                print(pushThat(opcode[2]) + "   // " + s)
+                
             elif opcode[1] == "argument":
-                # print(pushArgument(opcode[2]) + "   // " + s)
-                print()
+                print(pushArgument(opcode[2]) + "   // " + s)
+                
             elif opcode[1] == "this":
-                # print(pushThis(opcode[2]) + "   // " + s)
-                print()
+                print(pushThis(opcode[2]) + "   // " + s)
+                
             elif opcode[1] == "temp":
-                # print(pushThis(opcode[2]) + "   // " + s)
-                print()
+                print(pushThis(opcode[2]) + "   // " + s)
+            elif opcode[1] == "pointer":
+                print(pushPointer(opcode[2]) + "   // " + s)
             else:
                 print(s)
         # pop -------------------------------------------
         elif opcode[0] == "pop":
             if opcode[1] == "local":
-                # print(popLocal(opcode[2])+  "   // " + s)
-                print()
+                print(popLocal(opcode[2])+  "   // " + s)
+                
             elif opcode[1] == "argument":
-                print()
-                # print(popArgument(opcode[2])+  "   // " + s)
+                print(popArgument(opcode[2])+  "   // " + s)
+
             elif opcode[1] == "this":
-                print()
-                # print(popThis(opcode[2])+  "   // " + s)
+                print(popThis(opcode[2])+  "   // " + s)
+
             elif opcode[1] == "that":
-                print()
-                # print(popThat(opcode[2])+  "   // " + s)
+                
+                print(popThat(opcode[2])+  "   // " + s)
             elif opcode[1] == "temp":
-                print()
-                # print(popTemp(opcode[2])+  "   // " + s)
+                
+                print(popTemp(opcode[2])+  "   // " + s)
             else:
                 print(s)
         
         # else:
         #     print(s)
     else:
-        print(opcode[0])
+        if opcode[0] == "add":
+            print(add())
+        elif opcode[0] == "sub":
+            print(sub())  
+        else:
+            print(opcode[0])
+    
+print(end())
