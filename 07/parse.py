@@ -262,27 +262,33 @@ def popPointer(value):
 # M=D+M
 # SP++
 def add():
-    add = decreaseStack()
-    add += "@"+ "R0" + "\nD=M"
-    # 
-    Register["SP"] -=1
-    add += "\n@"+ "R0" + "\nM=D+M"
-    add += increaseStack()
+    # @--SP
+    add = "\n@R0\nM=M-1"
+    add += "@"+ "R0" + "\nA=M\nD=M"
+    # @--SP
+    add += "\n@R0\nM=M-1"
+
+    add += "\n@"+ "R0" + "\nA=\nM=D+M"
+
+    add += "\n@R0\nM=M+1"
     return add
 
 # SUB ----------------------------------------------------
 # @--SP
 # D=M
 # @--SP
-# M=D-M
+# M=M-D
 # SP++
 def sub():
-    sub = decreaseStack()
-    sub += "@"+ "R0" + "\nD=M"
-    # 
-    Register["SP"] -=1
-    sub += "\n@"+ "R0" + "\nM=D-M"
-    sub += increaseStack()
+    # @--SP
+    sub = "\n@R0\nM=M-1"
+    sub += "@"+ "R0" + "\nA=M\nD=M"
+    # @--SP
+    sub += "\n@R0\nM=M-1"
+
+    sub += "\n@"+ "R0" + "\nA=\nM=M-D"
+
+    sub += "\n@R0\nM=M+1"
     return sub
 
 def end():
