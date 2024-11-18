@@ -98,6 +98,10 @@ def sub():
     sub += "\n@R0\nM=M+1"
     return sub
 
+def neg():
+    asm = "@R0\nA=M-1\nM=-M"
+    return asm
+
 def eq(label):
     # save y to D
     asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
@@ -105,9 +109,59 @@ def eq(label):
     asm+= "\n@R14\nM=D"
     # save x to D
     asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
-    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JEQ\n@R0\nA=M\nM=0\n@END"+label
+    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JEQ\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
     asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
     asm+= "\n(END" + label + ")\n@R0\nM=M+1"
+    return asm
+
+def gt(label):
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JGT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
+    asm+= "\n(END" + label + ")\n@R0\nM=M+1"
+    return asm
+
+def lt(label):
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JLT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
+    asm+= "\n(END" + label + ")\n@R0\nM=M+1"
+    return asm
+
+def andWise():
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D&M\n@R0\nA=M\nM=D"
+    asm+= "\n@R0\nM=M+1"
+    return asm
+
+def orWise():
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D|M\n@R0\nA=M\nM=D"
+    asm+= "\n@R0\nM=M+1"
+    return asm
+
+def notWise():
+    asm = "@R0\nA=M-1\nM=!M"
     return asm
 
 
@@ -164,8 +218,20 @@ for idx,s in enumerate(rawVMCode):
             asmCode.append(add())
         elif opcode[0] == "sub":
             asmCode.append(sub())
+        elif opcode[0] == "neg":
+            asmCode.append(neg())
         elif opcode[0] == "eq":
-            asmCode.append(eq(str(idx)))  
+            asmCode.append(eq(str(idx)))
+        elif opcode[0] == "gt":
+            asmCode.append(gt(str(idx)))
+        elif opcode[0] == "lt":
+            asmCode.append(lt(str(idx)))
+        elif opcode[0] == "and":
+            asmCode.append(andWise())
+        elif opcode[0] == "or":
+            asmCode.append(orWise())
+        elif opcode[0] == "not":
+            asmCode.append(notWise())
         else:
             asmCode.append(opcode[0])
     
