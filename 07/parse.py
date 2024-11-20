@@ -1,259 +1,66 @@
 import sys
 
-# RAM address     Usage
-# 0-15            sixteen virtual register
-# 16-255          Static variable
-# 256-2047        Stack
-#
-# local     256 - 383
-# arg       384 - 512
-# this      513 - 641
-# that      642 - 769
-# constant  770 - 898 
-# Stack     899 - 2047
-# 
-# POINT 0 -> THIS
-# POINT 1 -> THAT
-
-Register = {
-    "SP"    : 256,
-    "LCL"   : 300,
-    "ARG"   : 400,
-    "THIS"  : 3000,
-    "THAT"  : 3010,
-    "TEMP0" : 0,
-    "TEMP1" : 0,
-    "TEMP2" : 0,
-    "TEMP3" : 0,
-    "TEMP4" : 0,
-    "TEMP5" : 0,
-    "TEMP6" : 0,
-    "TEMP7" : 0,
-    "R13"   : 0,
-    "R14"   : 0,
-    "R15"   : 0
+segment = {
+    "local" : "R1",
+    "argument" : "R2",
+    "this" : "R3",
+    "that" : "R4",
 }
-
-RegisterPos = {
-    "SP"    : "0",
-    "LCL"   : "1",
-    "ARG"   : "2",
-    "THIS"  : "3",
-    "THAT"  : "4",
-    "TEMP0" : "5",
-    "TEMP1" : "6",
-    "TEMP2" : "7",
-    "TEMP3" : "8",
-    "TEMP4" : "9",
-    "TEMP5" : "10",
-    "TEMP6" : "11",
-    "TEMP7" : "12",
-    "R13"   : "13",
-    "R14"   : "14",
-    "R15"   : "15"
-}
-
 TEMP = {
-    "0" : 5,
-    "1" : 6,
-    "2" : 7,
-    "3" : 8,
-    "4" : 9,
-    "5" : 10,
-    "6" : 11,
-    "7" : 12,
+    "0" : "R5",
+    "1" : "R6",
+    "2" : "R7",
+    "3" : "R8",
+    "4" : "R9",
+    "5" : "R10",
+    "6" : "R11",
+    "7" : "R12",
 }
 
-const = ["C_ARITHMETIC",
-         "C_POP",
-         "C_LABEL",
-         "C_GOTO",
-         "C_IF",
-         "C_FUNCTION",
-         "C_RETURN",
-         "C_CALL"]
-
-# STACK
-def increaseStack():
-    return "\n@R0\nM=M+1"
-  
-
-def decreaseStack():
-    return "@R0\nM=M-1\n"
-
-
-# Constant -----------------------------------------------
-# push constant value
-# @value
-# D=A
-# @R0
-# A=M
-# M=S
 def pushConstant(value):
-    result = "@" + value + "\nD=A" + "\n@R0" + "\nA=M\nM=D"
-    result += increaseStack()
-    return result
-    
-# --------------------------------------------------------
+    return "@" + value + "\nD=A\n@R0\nA=M\nM=D\n@R0\nM=M+1"
 
-# Local --------------------------------------------------
-# pop Local
-# @--SP
-# D=M
-# @local + i
-# M=D
-def popLocal(value):
-    result = decreaseStack()
-    result += "@"+ "R0" + "\nD=M" 
-    result += "\n@R1" + "\nD=M"+ "\n@"+value + "\nD=D+A\nA=D\nM=D"
-    return result
+# push segment
+# Local, argument, this, that:
+def pushSegment(seg, i):
+    return "@"+ i + "\nD=A\n@" + segment[seg]+ "\nA=D+M\nD=M\n@R0\nA=M\nM=D\n@R0\nM=M+1"
 
-# push local i
-# @local
-# D=M
-# @i
-# D=D+A
-# D=M
-# @SP
-# A=M
-# M=D
-def pushLocal(value):
-    result = "@R1" + "\nD=M"+ "\n@"+value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nA=M\nM=D"
-    result += increaseStack()
-    return result
+# pop segment
+# Local, argument, this, that:
+def popSegment(seg, i):
+    return "@R0\nM=M-1\n@"+ i + "\nD=A\n@" + segment[seg] + "\nD=D+M\n@R13\nM=D\n@R0\n\nA=M\nD=M\n@R13\nA=M\nM=D"
 
-# --------------------------------------------------------
+def pushPointer(i):
+    pointer = ""
+    if i == "0":
+        pointer = "R3"
+    else:
+        pointer = "R4"
+    return "\n@"+pointer + "\nD=M\n@R0\nA=M\nM=D\n@R0\nM=M+1"
 
-# Argument -----------------------------------------------
-# pop Argument i
-# @SP
-# D=M
-# @ARG
-# D=M
-# @i
-# D=D+A
-# A=D
-# M=D
-def popArgument(value):
-    result = decreaseStack()
-    result += "@"+ "R0" + "\nD=M" + "\n@R2" + "\nD=M" + "\n@"+value + "\nD=D+A\nA=D\nM=D"
-    return result
+def popPointer(i):
+    pointer = ""
+    if i == "0":
+        pointer = "R3"
+    else:
+        pointer = "R4"
+    return "@R0\nM=M-1\nA=M\nD=M\n@" + pointer + "\nM=D"
 
-# push argument i
-# @ARG + i
-# D=M
-# @SP
-# M=D
-def pushArgument(value):
-    result = "@R1" + "\nD=M" +"\n@"+ value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nM=D"
-    result += increaseStack()
-    return result
-
-
-# --------------------------------------------------------
-
-# THIS ---------------------------------------------------
-# pop this i
-#
-# @SP
-# D=M
-# @THIS + i
-# M=D
-def popThis(value):
-    result = decreaseStack()
-    result += "@"+ "R0" + "\nD=M\n@R3" + "\nD=M"+ "\n@" + value + "\nD=D+A\nA=D\nM=D"
-    return result
-
-# push this i
-# @THIS + i
-# D=M
-# @SP
-# M=D
-def pushThis(value):
-    result = "@R3" + "\nD=M"+ "\n@" + value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nM=D"
-    result += increaseStack()
-    return result
-# --------------------------------------------------------
-
-# THAT ---------------------------------------------------
-# pop that i
-# @SP
-# D=M
-# @THAT + i
-# M=D
-def popThat(value):
-    result = decreaseStack()
-    result += "@"+ "R0" + "\nD=M" + "\n@R4" + "\nD=M" + "\n@" + value + "\nD=D+A\nA=D\nM=D"
-    return result
-
-# push that i
-# @THAT + i
-# M=D
-# @SP
-# D=M
-def pushThat(value):
-    result = "@R4" + "\nD=M" + "\n@" + value + "\nD=D+A\nA=D\nD=M" + "\n@" + "R0" + "\nM=D"
-    result += increaseStack()
-    return result
-# --------------------------------------------------------
-
-# TEMP ---------------------------------------------------
-# pop temp i
-# @SP
-# D=M
-# @temp[i]
-# M=D
-def popTemp(value):
-    result = decreaseStack()
-    result += "@"+ "R0" + "\nD=M" + "\n@R" + str(TEMP[value]) + "\nM=D"
-    return result
-
-# push temp i
-# @temp[i]
-# D=M
-# @SP
-# M=D
 def pushTemp(value):
-    result = "@R" + str(TEMP[value]) + "\nD=M" + "\n@" + "R0" + "\nM=D"
-    result += increaseStack()
-    return result
-# --------------------------------------------------------
-
-# POINTER ------------------------------------------------
-# 0 = THIS (R3) or 1 = THAT (R4)
-
-# push pointer 0
-# @R3
-# D=M
-# @R0
-# A=M
-# M=D
-
-def pushPointer(value):
-    pointer = ""
-    if value == 0:
-        pointer = "R3"
-    else:
-        pointer = "R4"
-    
-    result = "@" + pointer + "\nD=M" + "\n@R0\nA=M\nM=D"
-    result += increaseStack()
+    result = "@" + TEMP[value] + "\nD=M" + "\n@" + "R0\nA=M\nM=D"
+    result += "\n@R0\nM=M+1"
     return result
 
-# pop pointer 0
-# @--R0
-# D=M
-# @R3
-# M=D
-def popPointer(value):
-    pointer = ""
-    if value == 0:
-        pointer = "R3"
-    else:
-        pointer = "R4"
-    result = decreaseStack()
-    result += "@R0\nD=M\n@"+pointer+"\nM=D"
-# --------------------------------------------------------
+def popTemp(value):
+    result = "@R0\nM=M-1\nA=M\nD=M"
+    result += "\n@" + TEMP[value] + "\nM=D"
+    return result
+
+def pushStatic(fileName, i):
+    return "@"+fileName + "." + i +"\nD=M\n@R0\nA=M\nM=D\n@R0\nM=M+1"
+
+def popStatic(fileName, i):
+    return "@R0\nM=M-1\nA=M\nD=M\n@"+fileName + "." + i+"\nM=D"
 
 # ADD ----------------------------------------------------
 # @--SP
@@ -264,11 +71,11 @@ def popPointer(value):
 def add():
     # @--SP
     add = "\n@R0\nM=M-1"
-    add += "@"+ "R0" + "\nA=M\nD=M"
+    add += "\n@"+ "R0" + "\nA=M\nD=M"
     # @--SP
     add += "\n@R0\nM=M-1"
 
-    add += "\n@"+ "R0" + "\nA=\nM=D+M"
+    add += "\n@"+ "R0" + "\nA=M\nM=D+M"
 
     add += "\n@R0\nM=M+1"
     return add
@@ -282,37 +89,89 @@ def add():
 def sub():
     # @--SP
     sub = "\n@R0\nM=M-1"
-    sub += "@"+ "R0" + "\nA=M\nD=M"
+    sub += "\n@"+ "R0" + "\nA=M\nD=M"
     # @--SP
     sub += "\n@R0\nM=M-1"
 
-    sub += "\n@"+ "R0" + "\nA=\nM=M-D"
+    sub += "\n@"+ "R0" + "\nA=M\nM=M-D"
 
     sub += "\n@R0\nM=M+1"
     return sub
+
+def neg():
+    asm = "@R0\nA=M-1\nM=-M"
+    return asm
+
+def eq(label):
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JEQ\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
+    asm+= "\n(END" + label + ")\n@R0\nM=M+1"
+    return asm
+
+def gt(label):
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JGT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
+    asm+= "\n(END" + label + ")\n@R0\nM=M+1"
+    return asm
+
+def lt(label):
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JLT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
+    asm+= "\n(END" + label + ")\n@R0\nM=M+1"
+    return asm
+
+def andWise():
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D&M\n@R0\nA=M\nM=D"
+    asm+= "\n@R0\nM=M+1"
+    return asm
+
+def orWise():
+    # save y to D
+    asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
+    # save y to R14
+    asm+= "\n@R14\nM=D"
+    # save x to D
+    asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
+    asm+= "\n@R14\nD=D|M\n@R0\nA=M\nM=D"
+    asm+= "\n@R0\nM=M+1"
+    return asm
+
+def notWise():
+    asm = "@R0\nA=M-1\nM=!M"
+    return asm
+
 
 def end():
     end = "(END)\n@END\n0;JMP\n"
     return end
 
-def initializer():
-    return
-
-def hasMoreLines():
-    return False
-
-def commandType():
-    return const[0]
-
-def arg1():
-    return ""
-
-def arg2():
-    return 1
-
 # push segment index -> push the value of segment[index] onto stack
 # pop  segment index -> pops the top stack value and store it in segment[index]
-
+fileName = sys.argv[1].split("/")[1].split(".")[0]
 f = open(sys.argv[1], "r")
 listA = f.read().splitlines()
 f.close()
@@ -322,61 +181,66 @@ for s in listA:
         continue
     rawVMCode.append(s)
 
-
-for s in rawVMCode:
+asmCode = []
+for idx,s in enumerate(rawVMCode):
     opcode = s.split(" ")
     if len(opcode) > 1:
         # push
         if opcode[0] == "push":
             if opcode[1] == "constant":
-                print(pushConstant(opcode[2]) + "   // " + s)
-                
-            elif opcode[1] == "local":
-                print(pushLocal(opcode[2]) + "   // " + s)
-                
-            elif opcode[1] == "that":
-                print(pushThat(opcode[2]) + "   // " + s)
-                
-            elif opcode[1] == "argument":
-                print(pushArgument(opcode[2]) + "   // " + s)
-                
-            elif opcode[1] == "this":
-                print(pushThis(opcode[2]) + "   // " + s)
-                
-            elif opcode[1] == "temp":
-                print(pushThis(opcode[2]) + "   // " + s)
+                asmCode.append(pushConstant(opcode[2]))
+            elif opcode[1] == "local" or opcode[1] == "argument" or opcode[1] == "this" or opcode[1] == "that":
+                asmCode.append(pushSegment(opcode[1], opcode[2]))
             elif opcode[1] == "pointer":
-                print(pushPointer(opcode[2]) + "   // " + s)
+                asmCode.append(pushPointer(opcode[2]))
+            elif opcode[1] == "temp":
+                asmCode.append(pushTemp(opcode[2]))
+            elif opcode[1] == "static":
+                asmCode.append(pushStatic(fileName, opcode[2]))
             else:
-                print(s)
+                asmCode.append(s)
         # pop -------------------------------------------
         elif opcode[0] == "pop":
-            if opcode[1] == "local":
-                print(popLocal(opcode[2])+  "   // " + s)
-                
-            elif opcode[1] == "argument":
-                print(popArgument(opcode[2])+  "   // " + s)
-
-            elif opcode[1] == "this":
-                print(popThis(opcode[2])+  "   // " + s)
-
-            elif opcode[1] == "that":
-                
-                print(popThat(opcode[2])+  "   // " + s)
+            if opcode[1] == "local" or opcode[1] == "argument" or opcode[1] == "this" or opcode[1] == "that":
+                asmCode.append(popSegment(opcode[1], opcode[2]))
+            elif opcode[1] == "pointer":
+                asmCode.append(popPointer(opcode[2]))
             elif opcode[1] == "temp":
-                
-                print(popTemp(opcode[2])+  "   // " + s)
+                asmCode.append(popTemp(opcode[2]))
+            elif opcode[1] == "static":
+                asmCode.append(popStatic(fileName, opcode[2]))
             else:
-                print(s)
-        
-        # else:
-        #     print(s)
+                asmCode.append(s)
+        else:
+            asmCode.append(s)
     else:
         if opcode[0] == "add":
-            print(add())
+            asmCode.append(add())
         elif opcode[0] == "sub":
-            print(sub())  
+            asmCode.append(sub())
+        elif opcode[0] == "neg":
+            asmCode.append(neg())
+        elif opcode[0] == "eq":
+            asmCode.append(eq(str(idx)))
+        elif opcode[0] == "gt":
+            asmCode.append(gt(str(idx)))
+        elif opcode[0] == "lt":
+            asmCode.append(lt(str(idx)))
+        elif opcode[0] == "and":
+            asmCode.append(andWise())
+        elif opcode[0] == "or":
+            asmCode.append(orWise())
+        elif opcode[0] == "not":
+            asmCode.append(notWise())
         else:
-            print(opcode[0])
+            asmCode.append(opcode[0])
     
-print(end())
+asmCode.append(end())
+
+writeFileName = sys.argv[1].split(".")[0] + ".asm"
+f = open(writeFileName, "w+")
+for s in asmCode:
+    print(s)
+    f.write(s+"\n")
+
+f.close()
