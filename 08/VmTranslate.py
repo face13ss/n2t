@@ -57,6 +57,10 @@ writeFileName = ""
 if arg.__contains__(".vm"):
     writeFileName = sys.argv[1].split(".")[0] + ".asm"  
 else:
-    writeFileName = arg + "/run.asm"
+    fileName = arg.strip().split("/")
+    for name in reversed(fileName):
+        if len(name) > 0:
+            writeFileName = name
+            break
 
 writeFile(vmSourceCode, writeFileName)

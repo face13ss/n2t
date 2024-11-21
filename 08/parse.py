@@ -162,10 +162,39 @@ def orWise():
 def notWise():
     asm = "@R0\nA=M-1\nM=!M"
     return asm
+
+# call function
+def functionCall(funcName, call_count):
+    callLabel = f"{funcName}.RET_{call_count}"
+    ret = f"@{callLabel}\nD=A\n@R0\nA=M\nM=D\n@R0\nM=M+1"
+    for address in ["@R1", "@R2", "@R3", "@R4"]:
+        ret += f"\n{address}\nD=M\n@R0\nA=M\nM=D\n@R0\nM=M+1"
+
+    ret += f"\n@R0\nD=M\n@R1\nM=D"
+    ret += f"\n@{int(call_count)+ 5}\nD=D-A\n@R2\nM=D"
+    ret += f"\n@{funcName}\n0;JMP"
+    ret += f"\n({callLabel})"
+    return ret
+
+def functionReturn():
+    #FRAME = R14
+    #RET = R15
+    ret = f"@R1\nD=M\n@R14\nM=D\n" #FRAME = LCL
+    ret+= f"@5\nA=D-A\nD=M\n@R15\nM=D\n" # RET=*(FRAME-5)
+    ret+= f"@R2\nD=M\n@0\nD=D+A\n@R13\nM=D\n@R0\nAM=M-1\nD=M\n@R13\nA=M\nM=D\n" # *ARG = pop()
+    ret+= f"@R2\nD=M\n@R0\nM=D+1\n" # SP = ARG + 1
+
+    for addr in ["@R4", "@R3", "@R2", "@R1"]:
+        ret+= f"@R14\nAMD=M-1\nD=M\n{addr}\nM=D\n"
+    ret+= f"@R15\nA=M\n0;JMP"
+    return ret
+
 # function define
-def functionDefine(nArgs):
-    n = int(nArgs)
-    if nArgs == 0:
+def functionDefine(funcName, nArgs):
+    ret = f"({funcName})"
+    for _ in range(int(nArgs)):
+        ret += "\n@0\nD=A\n@R0\nA=M\nM=D\n@R0\nM=M+1"
+    return ret
 
 def end():
     end = "(END)\n@END\n0;JMP\n"
@@ -217,7 +246,9 @@ def parseCode(rawVMCode:list, fileName: str)->list:
                 else:
                     asmCode.append(s +"debug pop 3")
             elif opcode[0] == "function":
-                asmCode.append("FUNCTION")
+                asmCode.append(functionDefine(opcode[1], opcode[2]))
+            elif opcode[0] == "call":
+                asmCode.append(functionCall(opcode[1], idx))
             else:
                 asmCode.append(s)
         elif len(opcode) == 2:
@@ -248,6 +279,8 @@ def parseCode(rawVMCode:list, fileName: str)->list:
                 asmCode.append(orWise())
             elif opcode[0] == "not":
                 asmCode.append(notWise())
+            elif opcode[0] == "return":
+                asmCode.append(functionReturn())
             else:
                 asmCode.append(s)
         
