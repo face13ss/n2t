@@ -27,7 +27,7 @@ def pushSegment(seg, i):
 # pop segment
 # Local, argument, this, that:
 def popSegment(seg, i):
-    return "@R0\nM=M-1\n@"+ i + "\nD=A\n@" + segment[seg] + "\nD=D+M\n@R13\nM=D\n@R0\n\nA=M\nD=M\n@R13\nA=M\nM=D"
+    return "@R0\nM=M-1\n@"+ i + "\nD=A\n@" + segment[seg] + "\nD=D+M\n@R5\nM=D\n@R0\n\nA=M\nD=M\n@R5\nA=M\nM=D"
 
 def pushPointer(i):
     pointer = ""
@@ -104,11 +104,11 @@ def neg():
 def eq(label):
     # save y to D
     asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
-    # save y to R14
-    asm+= "\n@R14\nM=D"
+    # save y to R6
+    asm+= "\n@R6\nM=D"
     # save x to D
     asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
-    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JEQ\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n@R6\nD=D-M\n@TRUE"+ label +"\nD;JEQ\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
     asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
     asm+= "\n(END" + label + ")\n@R0\nM=M+1"
     return asm
@@ -116,11 +116,11 @@ def eq(label):
 def gt(label):
     # save y to D
     asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
-    # save y to R14
-    asm+= "\n@R14\nM=D"
+    # save y to R6
+    asm+= "\n@R6\nM=D"
     # save x to D
     asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
-    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JGT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n@R6\nD=D-M\n@TRUE"+ label +"\nD;JGT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
     asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
     asm+= "\n(END" + label + ")\n@R0\nM=M+1"
     return asm
@@ -128,11 +128,11 @@ def gt(label):
 def lt(label):
     # save y to D
     asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
-    # save y to R14
-    asm+= "\n@R14\nM=D"
+    # save y to R6
+    asm+= "\n@R6\nM=D"
     # save x to D
     asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
-    asm+= "\n@R14\nD=D-M\n@TRUE"+ label +"\nD;JLT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
+    asm+= "\n@R6\nD=D-M\n@TRUE"+ label +"\nD;JLT\n@R0\nA=M\nM=0\n@END"+label+"\n0;JMP"
     asm+= "\n(TRUE" + label +")\n@R0\nA=M\nM=-1"
     asm+= "\n(END" + label + ")\n@R0\nM=M+1"
     return asm
@@ -140,22 +140,22 @@ def lt(label):
 def andWise():
     # save y to D
     asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
-    # save y to R14
-    asm+= "\n@R14\nM=D"
+    # save y to R6
+    asm+= "\n@R6\nM=D"
     # save x to D
     asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
-    asm+= "\n@R14\nD=D&M\n@R0\nA=M\nM=D"
+    asm+= "\n@R6\nD=D&M\n@R0\nA=M\nM=D"
     asm+= "\n@R0\nM=M+1"
     return asm
 
 def orWise():
     # save y to D
     asm = "@R0\nM=M-1\n@R0\nA=M\nD=M"
-    # save y to R14
-    asm+= "\n@R14\nM=D"
+    # save y to R6
+    asm+= "\n@R6\nM=D"
     # save x to D
     asm+= "\n@R0\nM=M-1\n@R0\nA=M\nD=M"
-    asm+= "\n@R14\nD=D|M\n@R0\nA=M\nM=D"
+    asm+= "\n@R6\nD=D|M\n@R0\nA=M\nM=D"
     asm+= "\n@R0\nM=M+1"
     return asm
 
@@ -186,6 +186,7 @@ def functionReturn():
 
     for addr in ["@R4", "@R3", "@R2", "@R1"]:
         ret+= f"@R14\nAMD=M-1\nD=M\n{addr}\nM=D\n"
+
     ret+= f"@R15\nA=M\n0;JMP"
     return ret
 

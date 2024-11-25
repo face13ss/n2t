@@ -62,5 +62,6 @@ else:
         if len(name) > 0:
             writeFileName = name
             break
+    writeFileName = f"{arg}{writeFileName}.asm"
 
 writeFile(vmSourceCode, writeFileName)
